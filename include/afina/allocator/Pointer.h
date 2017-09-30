@@ -1,6 +1,8 @@
 #ifndef AFINA_ALLOCATOR_POINTER_H
 #define AFINA_ALLOCATOR_POINTER_H
 
+#include <afina/allocator/Simple.h>
+
 namespace Afina {
 namespace Allocator {
 // Forward declaration. Do not include real class definition
@@ -8,16 +10,12 @@ namespace Allocator {
 class Simple;
 
 class Pointer {
+    friend class Simple;
+    Simple *_allocator = nullptr;
+    size_t _key = 0;
+
 public:
-    Pointer();
-
-    Pointer(const Pointer &);
-    Pointer(Pointer &&);
-
-    Pointer &operator=(const Pointer &);
-    Pointer &operator=(Pointer &&);
-
-    void *get() const { return 0; }
+    void *get(void) const;
 };
 
 } // namespace Allocator

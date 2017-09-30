@@ -21,6 +21,13 @@ class Pointer;
  */
 // TODO: Implements interface to allow usage as C++ allocators
 class Simple {
+    struct node_t {
+        node_t *next;
+        size_t key;
+        void *data;
+        size_t size;
+    };
+
 public:
     Simple(void *base, const size_t size);
 
@@ -54,6 +61,7 @@ public:
     std::string dump() const;
 
 private:
+    friend class Pointer;
     void *_base;
     const size_t _base_len;
 };

@@ -13,8 +13,13 @@ public:
     Storage(void) {}
     virtual ~Storage(void) {}
 
+<<<<<<< HEAD
     virtual void Start(void) {}
     virtual void Stop(void) {}
+=======
+    virtual void Start() {}
+    virtual void Stop() {}
+>>>>>>> d1889550123c497a6de29856d5b3958b58228cd6
 
     /**
      * Stores association between given key/value pair.

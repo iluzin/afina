@@ -8,6 +8,7 @@ namespace Backend {
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Put(const std::string &key, const std::string &value) {
     std::unique_lock<std::mutex> guard(_lock);
+<<<<<<< HEAD
     if (_max_size < 1) {
         return false;
     }
@@ -26,11 +27,15 @@ bool MapBasedGlobalLockImpl::Put(const std::string &key, const std::string &valu
     _backend[key].second.first = _tail;
     _tail = key;
     return true;
+=======
+    return false;
+>>>>>>> d1889550123c497a6de29856d5b3958b58228cd6
 }
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::PutIfAbsent(const std::string &key, const std::string &value) {
     std::unique_lock<std::mutex> guard(_lock);
+<<<<<<< HEAD
     auto it = _backend.find(key);
     if (it == _backend.end()) {
         if (_max_size < 1) {
@@ -52,12 +57,15 @@ bool MapBasedGlobalLockImpl::PutIfAbsent(const std::string &key, const std::stri
         _tail = key;
         return true;
     }
+=======
+>>>>>>> d1889550123c497a6de29856d5b3958b58228cd6
     return false;
 }
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Set(const std::string &key, const std::string &value) {
     std::unique_lock<std::mutex> guard(_lock);
+<<<<<<< HEAD
     auto it = _backend.find(key);
     if (it == _backend.end()) {
         return false;
@@ -75,11 +83,15 @@ bool MapBasedGlobalLockImpl::Set(const std::string &key, const std::string &valu
         _tail = key;
     }
     return true;
+=======
+    return false;
+>>>>>>> d1889550123c497a6de29856d5b3958b58228cd6
 }
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Delete(const std::string &key) {
     std::unique_lock<std::mutex> guard(_lock);
+<<<<<<< HEAD
     auto it = _backend.find(key);
     if (it == _backend.end()) {
         return false;
@@ -101,18 +113,25 @@ bool MapBasedGlobalLockImpl::Delete(const std::string &key) {
         _tail = prev;
     }
     return true;
+=======
+    return false;
+>>>>>>> d1889550123c497a6de29856d5b3958b58228cd6
 }
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Get(const std::string &key, std::string &value) const {
     std::unique_lock<std::mutex> guard(*const_cast<std::mutex *>(&_lock));
+<<<<<<< HEAD
     auto it = _backend.find(key);
     if (it == _backend.end()) {
         return false;
     }
     value = it->second.first;
     return true;
+=======
+    return false;
+>>>>>>> d1889550123c497a6de29856d5b3958b58228cd6
 }
 
-} // namespace MapBasedGlobalLockImpl
+} // namespace Backend
 } // namespace Afina

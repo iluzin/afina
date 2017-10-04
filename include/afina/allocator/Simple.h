@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstddef>
+#include <cstring>
 
 namespace Afina {
 namespace Allocator {

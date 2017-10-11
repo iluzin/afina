@@ -1,6 +1,8 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <unistd.h>
 #include <uv.h>
 
 #include <cxxopts.hpp>
@@ -48,6 +50,8 @@ int main(int argc, char **argv) {
         // and simplify validation below
         options.add_options()("s,storage", "Type of storage service to use", cxxopts::value<std::string>());
         options.add_options()("n,network", "Type of network service to use", cxxopts::value<std::string>());
+        options.add_options()("d,daemon", "Start afina in daemon mode");
+        options.add_options()("p,pid", "Place the process ID into <file>", cxxopts::value<std::string>());
         options.add_options()("h,help", "Print usage info");
         options.parse(argc, argv);
 
@@ -76,7 +80,7 @@ int main(int argc, char **argv) {
         throw std::runtime_error("Unknown storage type");
     }
 
-    // Build  & start network layer
+    // Build & start network layer
     std::string network_type = "uv";
     if (options.count("network") > 0) {
         network_type = options["network"].as<std::string>();
@@ -88,6 +92,26 @@ int main(int argc, char **argv) {
         app.server = std::make_shared<Afina::Network::Blocking::ServerImpl>(app.storage);
     } else {
         throw std::runtime_error("Unknown network type");
+    }
+
+    // Start in daemon mode
+    if (options.count("daemon") > 0) {
+        if (fork()) {
+            return EXIT_SUCCESS;
+        } else {
+            setsid();
+            fclose(stdin);
+            fclose(stdout);
+            fclose(stderr);
+        }
+    }
+
+    // Place the process ID into the file
+    if (options.count("pid") > 0) {
+        std::ofstream ofs(options["pid"].as<std::string>());
+        if (ofs.good()) {
+            ofs << getpid();
+        }
     }
 
     // Init local loop. It will react to signals and performs some metrics collections. Each

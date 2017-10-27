@@ -18,6 +18,8 @@
 #include <unistd.h>
 
 #include <afina/Storage.h>
+#include <afina/execute/Command.h>
+#include <protocol/Parser.h>
 
 namespace Afina {
 namespace Network {
@@ -33,11 +35,21 @@ void *ServerImpl::RunAcceptorProxy(void *p) {
     return 0;
 }
 
+void *ServerImpl::RunConnectionProxy(void *p) {
+    std::unique_ptr<std::pair<ServerImpl *, int>> up(static_cast<std::pair<ServerImpl *, int> *>(p));
+    try {
+        up->first->RunConnection(up->second);
+    } catch (std::runtime_error &ex) {
+        std::cerr << "Worker fails: " << ex.what() << std::endl;
+    }
+    return 0;
+}
+
 // See Server.h
 ServerImpl::ServerImpl(std::shared_ptr<Afina::Storage> ps) : Server(ps) {}
 
 // See Server.h
-ServerImpl::~ServerImpl() {}
+ServerImpl::~ServerImpl(void) {}
 
 // See Server.h
 void ServerImpl::Start(uint32_t port, uint16_t n_workers) {
@@ -88,19 +100,19 @@ void ServerImpl::Start(uint32_t port, uint16_t n_workers) {
 }
 
 // See Server.h
-void ServerImpl::Stop() {
+void ServerImpl::Stop(void) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
     running.store(false);
 }
 
 // See Server.h
-void ServerImpl::Join() {
+void ServerImpl::Join(void) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
     pthread_join(accept_thread, 0);
 }
 
 // See Server.h
-void ServerImpl::RunAcceptor() {
+void ServerImpl::RunAcceptor(void) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
 
     // For IPv4 we use struct sockaddr_in:
@@ -170,15 +182,21 @@ void ServerImpl::RunAcceptor() {
             throw std::runtime_error("Socket accept() failed");
         }
 
-        // TODO: Start new thread and process data from/to connection
-        {
-            std::string msg = "TODO: start new thread and process memcached protocol instead";
-            if (send(client_socket, msg.data(), msg.size(), 0) <= 0) {
-                close(client_socket);
-                close(server_socket);
-                throw std::runtime_error("Socket send() failed");
+        // Start new thread and process data from/to connection
+        connections_mutex.lock();
+        uint16_t workers = connections.size();
+        connections_mutex.unlock();
+        if (workers < max_workers) {
+            auto p = new std::pair<ServerImpl *, int>(this, client_socket);
+            pthread_t worker_thread;
+            if (pthread_create(&worker_thread, nullptr, ServerImpl::RunConnectionProxy, p) < 0) {
+                delete p;
+                throw std::runtime_error("Could not create worker thread");
             }
+        } else {
             close(client_socket);
+            std::cout << "network debug: max_workers is not enough while accepting new connection";
+            std::cout << std::endl;
         }
     }
 
@@ -193,7 +211,7 @@ void ServerImpl::RunAcceptor() {
 }
 
 // See Server.h
-void ServerImpl::RunConnection() {
+void ServerImpl::RunConnection(int client_socket) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
     pthread_t self = pthread_self();
 
@@ -203,7 +221,60 @@ void ServerImpl::RunConnection() {
         connections.insert(self);
     }
 
-    // TODO: All connection work is here
+    // All connection work is here
+    ssize_t count;
+    try {
+        size_t buffer_len;
+        socklen_t option_len = sizeof buffer_len;
+        if (getsockopt(client_socket, SOL_SOCKET, SO_RCVBUF, &buffer_len, &option_len) == -1) {
+            throw std::runtime_error("Socket getsockopt() failed");
+        }
+        char buffer[buffer_len];
+        std::string input;
+        Protocol::Parser parser;
+        while (running.load() && count) {
+            while ((count = recv(client_socket, buffer, buffer_len, 0)) > 0) {
+                input.append(buffer, count);
+            }
+            if (count == -1 && errno != EAGAIN) {
+                throw std::runtime_error("Socket recv() failed");
+            }
+            size_t parsed = 0;
+            if (parser.Parse(input, parsed)) {
+                uint32_t body_size;
+                auto command = parser.Build(body_size);
+                if (body_size > 0) {
+                    while(input.size() < body_size) {
+                        count = recv(client_socket, buffer, buffer_len, 0);
+                        if (count == -1 && errno != EAGAIN) {
+                            throw std::runtime_error("Socket recv() failed");
+                        }
+                        input.append(buffer, count);
+                    }
+                    std::string args = input.substr(0, body_size), out;
+                    input.erase(0, body_size);
+                    command->Execute(*pStorage, args, out);
+                    while (!out.empty()) {
+                        count = send(client_socket, out.data(), out.size(), 0);
+                        if (count == -1 && errno == EAGAIN) {
+                            continue;
+                        } else if (count <= 0) {
+                            throw std::runtime_error("Socket send() failed");
+                        }
+                        out.erase(0, count);
+                    }
+                }
+            }
+        }
+    } catch (const std::exception &e) {
+        std::string out = "SERVER_ERROR ";
+        out += e.what();
+        out += "\r\n";
+        while ((count = send(client_socket, out.data(), out.size(), 0)) > 0) {
+            out.erase(0, count);
+        }
+    }
+    close(client_socket);
 
     // Thread is about to stop, remove self from list of connections
     // and it was the very last one, notify main thread

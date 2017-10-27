@@ -3,8 +3,9 @@
 #include <stdexcept>
 
 #include <fcntl.h>
-#include <sys/epoll.h>
+#include <sys/event.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 

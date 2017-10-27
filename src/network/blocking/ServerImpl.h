@@ -20,30 +20,31 @@ namespace Blocking {
 class ServerImpl : public Server {
 public:
     ServerImpl(std::shared_ptr<Afina::Storage> ps);
-    ~ServerImpl();
+    ~ServerImpl(void);
 
     // See Server.h
     void Start(uint32_t port, uint16_t workers) override;
 
     // See Server.h
-    void Stop() override;
+    void Stop(void) override;
 
     // See Server.h
-    void Join() override;
+    void Join(void) override;
 
 protected:
     /**
      * Method is running in the connection acceptor thread
      */
-    void RunAcceptor();
+    void RunAcceptor(void);
 
     /**
      * Methos is running for each connection
      */
-    void RunConnection();
+    void RunConnection(int);
 
 private:
     static void *RunAcceptorProxy(void *p);
+    static void *RunConnectionProxy(void *p);
 
     // Atomic flag to notify threads when it is time to stop. Note that
     // flag must be atomic in order to safely publisj changes cross thread

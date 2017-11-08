@@ -1,6 +1,7 @@
 #ifndef AFINA_NETWORK_NONBLOCKING_WORKER_H
 #define AFINA_NETWORK_NONBLOCKING_WORKER_H
 
+#include <atomic>
 #include <memory>
 #include <pthread.h>
 
@@ -20,7 +21,8 @@ namespace NonBlocking {
 class Worker {
 public:
     Worker(std::shared_ptr<Afina::Storage> ps);
-    ~Worker();
+    Worker(const Worker &worker);
+    ~Worker(void);
 
     /**
      * Spaws new background thread that is doing epoll on the given server
@@ -35,22 +37,24 @@ public:
      * all readed commands are executed and results are send back to client, thread
      * must stop
      */
-    void Stop();
+    void Stop(void);
 
     /**
      * Blocks calling thread until background one for this worker is actually
      * been destoryed
      */
-    void Join();
+    void Join(void);
 
 protected:
     /**
      * Method executing by background thread
      */
-    void OnRun(void *args);
+    static void *OnRun(void *args);
 
 private:
     pthread_t thread;
+    std::atomic<bool> running;
+    std::shared_ptr<Afina::Storage> pStorage;
 };
 
 } // namespace NonBlocking

@@ -3,9 +3,12 @@
 #include <stdexcept>
 
 #include <fcntl.h>
-#include <sys/event.h>
+#ifndef __APPLE__
+#   include <sys/epoll.h>
+#else
+#   include <sys/event.h>
+#endif
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 

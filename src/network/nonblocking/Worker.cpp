@@ -1,10 +1,15 @@
 #include "Worker.h"
 
+#include <exception>
 #include <iostream>
+#include <unordered_map>
 
-#include <sys/event.h>
+#ifndef __APPLE__
+#   include <sys/epoll.h>
+#else
+#   include <sys/event.h>
+#endif
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/types.h>
 
 #include "Utils.h"
@@ -14,47 +19,51 @@ namespace Network {
 namespace NonBlocking {
 
 // See Worker.h
-Worker::Worker(std::shared_ptr<Afina::Storage> ps) {
+Worker::Worker(std::shared_ptr<Afina::Storage> ps) : pStorage(ps) {
     // TODO: implementation here
 }
 
 // See Worker.h
-Worker::~Worker() {
+Worker::Worker(const Worker &worker) : pStorage(worker.pStorage) {
+    // TODO: implementation here
+}
+
+// See Worker.h
+Worker::~Worker(void) {
     // TODO: implementation here
 }
 
 // See Worker.h
 void Worker::Start(int server_socket) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
-    // TODO: implementation here
+    auto p = new std::pair<Worker *, int>(this, server_socket);
+    if (pthread_create(&thread, nullptr, Worker::OnRun, p) < 0) {
+        delete p;
+        throw std::runtime_error("Could not create server thread");
+    }
 }
 
 // See Worker.h
-void Worker::Stop() {
+void Worker::Stop(void) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
-    // TODO: implementation here
+    running.store(false);
 }
 
 // See Worker.h
-void Worker::Join() {
+void Worker::Join(void) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
-    // TODO: implementation here
+    pthread_join(this->thread, nullptr);
 }
 
 // See Worker.h
-void Worker::OnRun(void *args) {
+void *Worker::OnRun(void *args) {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
 
-    // TODO: implementation here
-    // 1. Create epoll_context here
-    // 2. Add server_socket to context
-    // 3. Accept new connections, don't forget to call make_socket_nonblocking on
-    //    the client socket descriptor
-    // 4. Add connections to the local context
-    // 5. Process connection events
-    //
-    // Do not forget to use EPOLLEXCLUSIVE flag when register socket
-    // for events to avoid thundering herd type behavior.
+    auto p = static_cast<std::pair<Worker *, int> *>(args);
+    Worker &worker = *p->first;
+    int server_socket = p->second;
+    delete p;
+    return nullptr;
 }
 
 } // namespace NonBlocking

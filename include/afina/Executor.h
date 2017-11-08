@@ -28,7 +28,7 @@ class Executor {
     };
 
     Executor(std::string name, int size);
-    ~Executor();
+    ~Executor(void);
 
     /**
      * Signal thread pool to stop, it will stop accepting new jobs and close threads just after each become
@@ -62,10 +62,10 @@ class Executor {
 
 private:
     // No copy/move/assign allowed
-    Executor(const Executor &);            // = delete;
-    Executor(Executor &&);                 // = delete;
-    Executor &operator=(const Executor &); // = delete;
-    Executor &operator=(Executor &&);      // = delete;
+    Executor(const Executor &)             = delete;
+    Executor(Executor &&)                  = delete;
+    Executor &operator=(const Executor &)  = delete;
+    Executor &operator=(Executor &&)       = delete;
 
     /**
      * Main function that all pool threads are running. It polls internal task queue and execute tasks
@@ -97,6 +97,47 @@ private:
      */
     State state;
 };
+
+Executor::Executor(std::string name, int size) : threads(size, [&](void) { perform(this); }) {
+    state = State::kRun;
+}
+
+Executor::~Executor(void) {
+    this->Stop(true);
+}
+
+void Executor::Stop(bool await) {
+    mutex.lock();
+    if (state == State::kRun) {
+        state = State::kStopping;
+        empty_condition.notify_all();
+        mutex.unlock();
+        if (await) {
+            std::for_each(threads.begin(), threads.end(), [](std::thread &t) { t.join(); });
+        }
+        mutex.lock();
+        state = State::kStopped;
+    }
+    mutex.unlock();
+}
+
+void perform(Executor *executor) {
+    for (;;) {
+        std::function<void(void)> task;
+        {
+            std::unique_lock<std::mutex> lock(executor->mutex);
+            executor->empty_condition.wait(lock, [&executor](void) {
+                return executor->state == Executor::State::kStopping || !executor->tasks.empty();
+            });
+            if (executor->state == Executor::State::kStopping && executor->tasks.empty()) {
+                break;
+            }
+            task = executor->tasks.front();
+            executor->tasks.pop_front();
+        }
+        task();
+    }
+}
 
 } // namespace Afina
 

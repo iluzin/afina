@@ -14,6 +14,9 @@
 
 #include "Utils.h"
 
+#include <afina/execute/Command.h>
+#include <protocol/Parser.h>
+
 #define MAXEVENTS 64
 
 namespace Afina {
@@ -79,7 +82,7 @@ void *Worker::OnRun(void *args) {
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, server_socket, &ev) == -1) {
         throw std::runtime_error("epoll_ctl");
     }
-    while (running.load()) {
+    while (worker.running.load()) {
         int nfds = epoll_wait(epfd, events, MAXEVENTS, -1);
         if (nfds < 0) {
             throw std::runtime_error("epoll_wait");

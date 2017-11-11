@@ -1,5 +1,6 @@
 #include "Worker.h"
 
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <unordered_map>
@@ -11,6 +12,7 @@
 #endif
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "Utils.h"
 
@@ -24,19 +26,13 @@ namespace Network {
 namespace NonBlocking {
 
 // See Worker.h
-Worker::Worker(std::shared_ptr<Afina::Storage> ps) : pStorage(ps) {
-    // TODO: implementation here
-}
+Worker::Worker(std::shared_ptr<Afina::Storage> ps) : pStorage(ps) {}
 
 // See Worker.h
-Worker::Worker(const Worker &worker) : pStorage(worker.pStorage) {
-    // TODO: implementation here
-}
+Worker::Worker(const Worker &worker) : pStorage(worker.pStorage) {}
 
 // See Worker.h
-Worker::~Worker(void) {
-    // TODO: implementation here
-}
+Worker::~Worker(void) {}
 
 // See Worker.h
 void Worker::Start(int server_socket) {
@@ -109,10 +105,10 @@ void *Worker::OnRun(void *args) {
                 }
             } else {
                 int client_socket = events[i].data.fd;
+                ssize_t count;
                 if (events[i].events & EPOLLIN) {
                     try {
                         char buffer[buffer_len[client_socket]];
-                        ssize_t count;
                         while ((count = recv(client_socket, buffer, buffer_len[client_socket], 0)) > 0) {
                             input[client_socket].append(buffer, count);
                         }
@@ -124,7 +120,7 @@ void *Worker::OnRun(void *args) {
                             }
                         }
                         if (parser[client_socket].Parse(input[client_socket], parsed[client_socket])) {
-                            auto command = parser.Build(body_size[client_socket]);
+                            auto command = parser[client_socket].Build(body_size[client_socket]);
                             if (body_size[client_socket] > 0) {
                                 while (input[client_socket].size() < body_size[client_socket]) {
                                     count = recv(client_socket, buffer, buffer_len[client_socket], 0);
@@ -142,7 +138,7 @@ void *Worker::OnRun(void *args) {
                                 }
                                 std::string args = input[client_socket].substr(0, body_size[client_socket]), out;
                                 input[client_socket].erase(0, body_size[client_socket]);
-                                command->Execute(*pStorage, args, out);
+                                command->Execute(*worker.pStorage, args, out);
                                 while (!out.empty()) {
                                     count = send(client_socket, out.data(), out.size(), 0);
                                     if (count == -1 && errno == EAGAIN) {

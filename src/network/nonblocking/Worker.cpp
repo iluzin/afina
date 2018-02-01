@@ -4,12 +4,7 @@
 #include <exception>
 #include <iostream>
 #include <unordered_map>
-
-#ifndef __APPLE__
-#   include <sys/epoll.h>
-#else
-#   include <sys/event.h>
-#endif
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>

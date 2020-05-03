@@ -53,7 +53,7 @@ void Engine::sched(void *routine_) {
         }
         if (cur_routine) {
             Store(*cur_routine);
-            if (setjmp(cur_routine -> Environment)) {
+            if (setjmp(cur_routine->Environment)) {
                 return;
             }
         }
@@ -62,5 +62,5 @@ void Engine::sched(void *routine_) {
     }
 }
 
-} // namespace Coroutine
-} // namespace Afina
+}
+}

@@ -62,5 +62,5 @@ void Engine::sched(void *routine_) {
     }
 }
 
-}
-}
+} // namespace Coroutine
+} // namespace Afina
